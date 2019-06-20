@@ -1,0 +1,108 @@
+version: '3.5'
+
+networks:
+  frontend:
+    driver: ${NETWORKS_DRIVER}
+  backend:
+    driver: ${NETWORKS_DRIVER}
+
+services:
+  workspace:
+      build:
+        context: ./workspace
+        args:
+          - PHP_VERSION=${PHP_VERSION}
+          - NPM_REGISTRY=${WORKSPACE_NPM_REGISTRY}
+          - PUID=${WORKSPACE_PUID}
+          - PGID=${WORKSPACE_PGID}
+          - NODE_VERSION=${WORKSPACE_NODE_VERSION}
+          - YARN_VERSION=${WORKSPACE_YARN_VERSION}
+          - TZ=${WORKSPACE_TIMEZONE}
+          - http_proxy
+          - https_proxy
+          - no_proxy
+      volumes:
+        - ${APP_CODE_PATH_HOST}/:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      ports:
+        - "${WORKSPACE_SSH_PORT}:22"
+      tty: true
+      environment:
+        - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+        - DOCKER_HOST=tcp://docker-in-docker:2375
+      networks:
+        - frontend
+        - backend
+      links:
+        - docker-in-docker
+  web:
+   build:
+     context: ./nginx
+     args:
+       - PHP_UPSTREAM_CONTAINER=${NGINX_PHP_UPSTREAM_CONTAINER}
+       - PHP_UPSTREAM_PORT=${NGINX_PHP_UPSTREAM_PORT}
+       - PHP_VERSION=${PHP_VERSION}
+   ports:
+      - "80:80"
+      - "3000:443"
+   volumes:
+      - ${APP_CODE_PATH_HOST}/icon:/var/www/html/icon
+      - ${APP_CODE_PATH_HOST}/api:/var/www/html/api
+      - ./nginx/sites/default.conf:/etc/nginx/conf.d/default.conf
+   restart: always
+   depends_on:
+     - php
+     - mysqldb
+     - mongodb
+  php:
+    build:
+      context: ./php-fpm
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+    restart: always
+    volumes:
+      - ${APP_CODE_PATH_HOST}/icon:/var/www/html/icon
+      - ${APP_CODE_PATH_HOST}/api:/var/www/html/api
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini:cached
+  mysqldb:
+    build:
+      context: ./mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+
+  adminer:
+    build:
+      context: ./adminer
+    restart: always
+    ports:
+      - 8080:8080
+    depends_on:
+      - mysqldb
+
+  mongodb:
+    build:
+      context: ./mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ${DATA_PATH_HOST}/mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+
+  docker-in-docker:
+    image: docker:dind
+    privileged: true
+    volumes:
+      - ${APP_CODE_PATH_HOST}/:${APP_CODE_PATH_CONTAINER}
+    expose:
+      - 2375
+    networks:
+      - backend
