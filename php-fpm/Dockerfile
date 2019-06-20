@@ -222,6 +222,9 @@ WORKDIR /var/www
 ADD install_composer.sh ./install_composer.sh
 RUN ./install_composer.sh && rm ./install_composer.sh
 
+ARG PHP_UPSTREAM_CONTAINER=php-fpm
+ARG PHP_UPSTREAM_PORT=9000
+
 CMD ["php-fpm"]
 
-EXPOSE 9000
+EXPOSE ${PHP_UPSTREAM_PORT}
