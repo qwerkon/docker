@@ -35,11 +35,15 @@ services:
       environment:
         - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
         - DOCKER_HOST=tcp://docker-in-docker:2375
+        - DB_PORT=3306
+        - DB_HOST=database
       networks:
         - frontend
         - backend
       links:
         - docker-in-docker
+        - mysqldb
+        - mongodb
       restart: on-failure
 
   nginx:
@@ -71,6 +75,10 @@ services:
    networks:
      - frontend
      - backend
+   links:
+     - docker-in-docker
+     - mysqldb
+     - mongodb
 
   php-fpm:
     build:
@@ -93,22 +101,31 @@ services:
       - backend
     links:
       - docker-in-docker
+      - mysqldb
+      - mongodb
 
   mysqldb:
     build:
       context: ./mysql
+      args:
+        - NEW_MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3306:3306"
     restart: on-failure
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_HOST: "%"
     volumes:
       - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+      - ./mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d/:rw
     networks:
       - backend
-    command: "--innodb_use_native_aio=0"
+    command: "--innodb_use_native_aio=0 --explicit_defaults_for_timestamp"
+    links:
+      - docker-in-docker
 
   adminer:
     build:
@@ -123,6 +140,10 @@ services:
     networks:
       - frontend
       - backend
+    links:
+      - docker-in-docker
+      - mysqldb
+      - mongodb
 
   mongodb:
     build:
@@ -139,6 +160,8 @@ services:
     networks:
       - backend
     command: "--bind_ip_all --smallfiles --config=/usr/local/etc/mongo/mongo.conf"
+    links:
+      - docker-in-docker
 
   docker-in-docker:
     image: docker:dind
