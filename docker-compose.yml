@@ -148,6 +148,10 @@ services:
   mongodb:
     build:
       context: ./mongo
+      args:
+      - MONGO_DATABASE_NAME=${MONGO_DATABASE_NAME}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     restart: on-failure
     ports:
       - "27017:27017"
@@ -157,6 +161,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE_NAME}
     networks:
       - backend
     command: "--bind_ip_all --smallfiles --config=/usr/local/etc/mongo/mongo.conf"
