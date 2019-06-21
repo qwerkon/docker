@@ -6,6 +6,10 @@ networks:
   backend:
     driver: ${NETWORKS_DRIVER}
 
+volumes:
+  mongodb:
+    driver: local
+
 services:
   workspace:
       build:
@@ -36,6 +40,7 @@ services:
         - backend
       links:
         - docker-in-docker
+    restart: on-failure
 
   nginx:
    build:
@@ -50,7 +55,7 @@ services:
       - ${APP_CODE_PATH_HOST}/icon:/var/www/html/icon
       - ${APP_CODE_PATH_HOST}/api:/var/www/html/api
       - ./nginx/sites/default.conf:/etc/nginx/conf.d/default.conf
-   restart: always
+   restart: on-failure
    depends_on:
      - php-fpm
      - mysqldb
@@ -66,7 +71,7 @@ services:
         - PHP_VERSION=${PHP_VERSION}
         - PHP_UPSTREAM_PORT=${NGINX_PHP_UPSTREAM_PORT}
         - PHP_UPSTREAM_CONTAINER=${NGINX_PHP_UPSTREAM_CONTAINER}
-    restart: always
+    restart: on-failure
     volumes:
       - ${APP_CODE_PATH_HOST}/icon:/var/www/html/icon
       - ${APP_CODE_PATH_HOST}/api:/var/www/html/api
@@ -84,7 +89,7 @@ services:
   mysqldb:
     build:
       context: ./mysql
-    restart: always
+    restart: on-failure
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD}
@@ -100,7 +105,7 @@ services:
   adminer:
     build:
       context: ./adminer
-    restart: always
+    restart: on-failure
     ports:
       - 8080:8080
     depends_on:
@@ -113,11 +118,12 @@ services:
   mongodb:
     build:
       context: ./mongo
-    restart: always
+    restart: on-failure
     ports:
       - "27017:27017"
     volumes:
-      - ${DATA_PATH_HOST}/mongodb:/data/db
+      # - ${DATA_PATH_HOST}/mongodb:/data/db
+      - mongodb:/data/db
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
