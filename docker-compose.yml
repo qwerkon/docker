@@ -48,13 +48,21 @@ services:
      args:
        - PHP_UPSTREAM_CONTAINER=${NGINX_PHP_UPSTREAM_CONTAINER}
        - PHP_UPSTREAM_PORT=${NGINX_PHP_UPSTREAM_PORT}
+       - CHANGE_SOURCE=${CHANGE_SOURCE}
+       - http_proxy
+       - https_proxy
+       - no_proxy
    ports:
       - "80:80"
       - "3000:443"
    volumes:
-      - ${APP_CODE_PATH_HOST}/icon:/var/www/html/icon
-      - ${APP_CODE_PATH_HOST}/api:/var/www/html/api
+      - ${APP_CODE_PATH_HOST}/icon:${APP_CODE_PATH_CONTAINER}/icon
+      - ${APP_CODE_PATH_HOST}/api:${APP_CODE_PATH_CONTAINER}/api
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
       - ./nginx/sites/default.conf:/etc/nginx/conf.d/default.conf
+      - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+      - ${NGINX_SITES_PATH}:/etc/nginx/sites-available
+      - ${NGINX_SSL_PATH}:/etc/nginx/ssl
    restart: on-failure
    depends_on:
      - php-fpm
@@ -110,6 +118,7 @@ services:
       - 8080:8080
     depends_on:
       - mysqldb
+      - mongodb
       - php-fpm
     networks:
       - frontend
@@ -129,7 +138,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     networks:
       - backend
-    command: "--smallfiles --config=/usr/local/etc/mongo/mongo.conf"
+    command: "--bind_ip_all --smallfiles --config=/usr/local/etc/mongo/mongo.conf"
 
   docker-in-docker:
     image: docker:dind
